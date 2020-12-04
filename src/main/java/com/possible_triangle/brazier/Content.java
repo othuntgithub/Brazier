@@ -14,6 +14,7 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.rendereregistry.v1.BlockEntityRendererRegistry;
 import net.fabricmc.fabric.api.client.rendereregistry.v1.EntityRendererRegistry;
+import net.fabricmc.fabric.api.object.builder.v1.entity.FabricEntityTypeBuilder;
 import net.fabricmc.fabric.api.tag.TagRegistry;
 import net.fabricmc.fabric.impl.blockrenderlayer.BlockRenderLayerMapImpl;
 import net.minecraft.block.*;
@@ -21,6 +22,7 @@ import net.minecraft.block.entity.BlockEntityType;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.entity.EntityRenderDispatcher;
+import net.minecraft.entity.EntityDimensions;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.SpawnGroup;
 import net.minecraft.item.*;
@@ -42,7 +44,7 @@ public class Content {
     public static final String MODID = "brazier";
 
     public static Identifier modLoc(String path) {
-        return modLoc(path);
+        return new Identifier(MODID, path);
     }
 
     public static final Tag<Block> BRAZIER_BASE_BLOCKS = TagRegistry.block(modLoc("brazier_base_blocks"));
@@ -75,8 +77,9 @@ public class Content {
     public static final Block SPAWN_POWDER = registerBlock("spawn_powder", new SpawnPowder(), p -> p.group(ItemGroup.MATERIALS));
 
     public static final EntityType<Crazed> CRAZED = Registry.register(ENTITY_TYPE, "crazed",
-            EntityType.Builder.<Crazed>create(Crazed::new, SpawnGroup.MONSTER)
-                    .makeFireImmune().build("crazed")
+            FabricEntityTypeBuilder.<Crazed>create(SpawnGroup.MONSTER, Crazed::new)
+                    .fireImmune()
+                    .build()
     );
 
     public static final SpawnEggItem CRAZED_SPAWN_EGG = Registry.register(ITEM, "crazed_spawn_egg", new SpawnEggItem(CRAZED,
@@ -85,10 +88,11 @@ public class Content {
             new Item.Settings().group(ItemGroup.MISC)
     ));
 
-    public static final EntityType<CrazedFlame> CRAZED_FLAME = Registry.register(ENTITY_TYPE, "crazed_flame", EntityType.Builder.<CrazedFlame>create(CrazedFlame::new, SpawnGroup.MISC)
-            .setDimensions(0.6F, 0.6F)
-            .makeFireImmune()
-            .build("crazed_flame")
+    public static final EntityType<CrazedFlame> CRAZED_FLAME = Registry.register(ENTITY_TYPE, "crazed_flame",
+            FabricEntityTypeBuilder.<CrazedFlame>create(SpawnGroup.MISC, CrazedFlame::new)
+                    .dimensions(new EntityDimensions(0.6F, 0.6F, true))
+                    .fireImmune()
+                    .build()
     );
 
     public static <B extends Block> B registerBlock(String name, B supplier, Function<Item.Settings, Item.Settings> props) {
