@@ -1,22 +1,24 @@
 package com.possible_triangle.brazier.block.tile;
 
-import net.minecraft.nbt.CompoundNBT;
-import net.minecraft.network.play.server.SUpdateTileEntityPacket;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.tileentity.TileEntityType;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.packet.s2c.play.BlockEntityUpdateS2CPacket;
+import org.jetbrains.annotations.Nullable;
 
-public class BaseTile extends TileEntity {
+public class BaseTile extends BlockEntity {
 
-    public BaseTile(TileEntityType<?> type) {
+    public BaseTile(BlockEntityType<?> type) {
         super(type);
     }
 
-    public SUpdateTileEntityPacket getUpdatePacket() {
-        return new SUpdateTileEntityPacket(this.pos, 3, this.getUpdateTag());
+    @Override
+    public @Nullable BlockEntityUpdateS2CPacket toUpdatePacket() {
+        return new BlockEntityUpdateS2CPacket(this.pos, 3, this.getUpdateTag());
     }
 
-    public CompoundNBT getUpdateTag() {
-        return this.write(new CompoundNBT());
+    public CompoundTag getUpdateTag() {
+        return this.toTag(new CompoundTag());
     }
 
 }

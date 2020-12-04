@@ -1,31 +1,32 @@
 package com.possible_triangle.brazier.entity.render;
 
-import com.mojang.blaze3d.matrix.MatrixStack;
-import com.mojang.blaze3d.vertex.IVertexBuilder;
 import com.possible_triangle.brazier.Brazier;
+import com.possible_triangle.brazier.Content;
 import com.possible_triangle.brazier.entity.CrazedFlame;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.*;
-import net.minecraft.client.renderer.entity.EntityRenderer;
-import net.minecraft.client.renderer.entity.EntityRendererManager;
-import net.minecraft.client.renderer.model.ModelManager;
-import net.minecraft.client.renderer.model.ModelResourceLocation;
-import net.minecraft.client.renderer.texture.AtlasTexture;
-import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.OverlayTexture;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.block.BlockRenderManager;
+import net.minecraft.client.render.entity.EntityRenderDispatcher;
+import net.minecraft.client.render.entity.EntityRenderer;
+import net.minecraft.client.render.model.BakedModelManager;
+import net.minecraft.client.render.model.SpriteAtlasManager;
+import net.minecraft.client.texture.SpriteAtlasTexture;
+import net.minecraft.client.util.ModelIdentifier;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.client.util.math.Vector3f;
+import net.minecraft.entity.EntityDimensions;
 import net.minecraft.entity.projectile.DragonFireballEntity;
-import net.minecraft.inventory.container.PlayerContainer;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.vector.Matrix3f;
-import net.minecraft.util.math.vector.Matrix4f;
-import net.minecraft.util.math.vector.Vector3f;
 
 public class CrazedFlameRenderer extends EntityRenderer<CrazedFlame> {
 
-    public static final ModelResourceLocation MODEL = new ModelResourceLocation(new ResourceLocation(Brazier.MODID, "living_flame"), "inventory");
+    public static final ModelIdentifier MODEL = new ModelIdentifier(new Identifier(Content.MODID, "living_flame"), "inventory");
 
-    public CrazedFlameRenderer(EntityRendererManager entityRendererManager) {
-        super(entityRendererManager);
+    public CrazedFlameRenderer(EntityRenderDispatcher dispatcher) {
+        super(dispatcher);
     }
 
     @Override
@@ -34,38 +35,38 @@ public class CrazedFlameRenderer extends EntityRenderer<CrazedFlame> {
     }
 
     @Override
-    public ResourceLocation getEntityTexture(CrazedFlame entity) {
-        return PlayerContainer.LOCATION_BLOCKS_TEXTURE;
+    public Identifier getTexture(CrazedFlame entity) {
+        return SpriteAtlasTexture.BLOCK_ATLAS_TEXTURE;
     }
+
 
     @Override
-    public void render(CrazedFlame entity, float entityYaw, float partialTicks, MatrixStack matrizes, IRenderTypeBuffer buffer, int packedLightIn) {
-        matrizes.push();
-        matrizes.translate(0, 0.5F, 0);
+    public void render(CrazedFlame entity, float yaw, float tickDelta, MatrixStack matrices, VertexConsumerProvider buffer, int light) {
+        matrices.push();
+        matrices.translate(0, 0.5D, 0);
         float scale = 1.5F;
-        matrizes.scale(scale, scale, scale);
-        renderFlame(matrizes, this.renderManager, buffer, packedLightIn);
-        matrizes.pop();
+        matrices.scale(scale, scale, scale);
+        renderFlame(matrices, this.dispatcher, buffer, light);
+        matrices.pop();
     }
 
-    public static void renderFlame(MatrixStack matrizes, EntityRendererManager rendererManager, IRenderTypeBuffer buffer, int packedLightIn) {
-
-        Minecraft mc = Minecraft.getInstance();
-        BlockRendererDispatcher dispatcher = mc.getBlockRendererDispatcher();
-        ModelManager modelManager = mc.getModelManager();
+    public static void renderFlame(MatrixStack matrices, EntityRenderDispatcher rendererManager, VertexConsumerProvider buffer, int light) {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        BlockRenderManager dispatcher = mc.getBlockRenderManager();
+        BakedModelManager modelManager = mc.getBakedModelManager();
         float scale = 0.6F;
 
-        matrizes.push();
-        matrizes.scale(scale, scale, scale);
-        matrizes.rotate(rendererManager.getCameraOrientation());
-        matrizes.rotate(Vector3f.YP.rotationDegrees(180.0F));
-        matrizes.translate(-0.5F, -0.5F, -0.5F);
-        dispatcher.getBlockModelRenderer().renderModelBrightnessColor(
-                matrizes.getLast(), buffer.getBuffer(Atlases.getCutoutBlockType()),
+        matrices.push();
+        matrices.scale(scale, scale, scale);
+        matrices.multiply(rendererManager.camera.getRotation());
+        matrices.multiply(Vector3f.POSITIVE_Y.getDegreesQuaternion(180.0F));
+        matrices.translate(-0.5F, -0.5F, -0.5F);
+        dispatcher.getModelRenderer().render(
+                matrices.peek(), buffer.getBuffer(RenderLayer.getCutout()),
                 null, modelManager.getModel(MODEL), 1.0F, 1.0F, 1.0F,
-                packedLightIn, OverlayTexture.NO_OVERLAY
+                light, 0
         );
-        matrizes.pop();
+        matrices.pop();
     }
 
 }

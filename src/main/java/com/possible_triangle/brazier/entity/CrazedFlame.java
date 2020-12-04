@@ -1,26 +1,26 @@
 package com.possible_triangle.brazier.entity;
 
 import com.possible_triangle.brazier.Content;
+import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
+import net.minecraft.client.world.ClientWorld;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.LivingEntity;
-import net.minecraft.nbt.CompoundNBT;
-import net.minecraft.network.IPacket;
-import net.minecraft.network.play.server.SSpawnObjectPacket;
-import net.minecraft.particles.ParticleTypes;
-import net.minecraft.util.DamageSource;
-import net.minecraft.util.Direction;
-import net.minecraft.util.IndirectEntityDamageSource;
-import net.minecraft.util.SoundEvents;
+import net.minecraft.entity.damage.DamageSource;
+import net.minecraft.entity.damage.EntityDamageSource;
+import net.minecraft.entity.damage.ProjectileDamageSource;
+import net.minecraft.loot.condition.BlockStatePropertyLootCondition;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.Packet;
+import net.minecraft.network.packet.s2c.play.EntitySpawnS2CPacket;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.tag.BlockTags;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
-import net.minecraft.world.server.ServerWorld;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.fml.network.NetworkHooks;
+import org.jetbrains.annotations.Nullable;
 
-import javax.annotation.Nullable;
 import java.util.UUID;
 
 public class CrazedFlame extends Entity {
@@ -35,12 +35,12 @@ public class CrazedFlame extends Entity {
     public CrazedFlame(World world, double x, double y, double z, LivingEntity caster) {
         this(world);
         this.setCaster(caster);
-        this.setPosition(x, y, z);
+        this.setPos(x, y, z);
     }
 
     @SuppressWarnings("unused")
     public CrazedFlame(World world) {
-        this(Content.CRAZED_FLAME.get(), world);
+        this(Content.CRAZED_FLAME, world);
     }
 
     public CrazedFlame(EntityType<? extends CrazedFlame> type, World world) {
@@ -50,25 +50,26 @@ public class CrazedFlame extends Entity {
     @Override
     public void tick() {
         --this.life;
-        if (world.isRemote) {
+        if (world instanceof ClientWorld) {
             if (this.life % 4 == 0) {
                 for (int i = 0; i < 2; ++i) {
-                    double x = this.getPosX() + (this.rand.nextDouble() * 2.0D - 1.0D) * (double) this.getWidth() * 0.5D;
-                    double y = this.getPosY() - 0.4;
-                    double z = this.getPosZ() + (this.rand.nextDouble() * 2.0D - 1.0D) * (double) this.getWidth() * 0.5D;
-                    double dx = (this.rand.nextDouble() * 2.0D - 1.0D) * 0.05D;
-                    double dy = 0.02D + this.rand.nextDouble() * 0.05D;
-                    double dz = (this.rand.nextDouble() * 2.0D - 1.0D) * 0.05D;
-                    this.world.addParticle(Content.FLAME_PARTICLE.get(), x, y + 1.0D, z, dx, dy, dz);
+                    double x = this.getX() + (this.random.nextDouble() * 2.0D - 1.0D) * (double) this.getWidth() * 0.5D;
+                    double y = this.getY() - 0.4;
+                    double z = this.getZ() + (this.random.nextDouble() * 2.0D - 1.0D) * (double) this.getWidth() * 0.5D;
+                    double dx = (this.random.nextDouble() * 2.0D - 1.0D) * 0.05D;
+                    double dy = 0.02D + this.random.nextDouble() * 0.05D;
+                    double dz = (this.random.nextDouble() * 2.0D - 1.0D) * 0.05D;
+                    this.world.addParticle(Content.FLAME_PARTICLE, x, y + 1.0D, z, dx, dy, dz);
                 }
             }
         } else {
             if (this.life <= 0) remove();
 
             if (INITIAL_LIFE - 20 > life && life % 5 == 0) {
-                world.getEntitiesWithinAABB(LivingEntity.class, getBoundingBox().grow(0.2D, 0.2D, 0.2D)).forEach(this::damage);
-                BlockPos pos = new BlockPos(this.getPositionVec());
-                if(world.getBlockState(pos).isAir(world, pos) && world.getBlockState(pos.down()).isFlammable(world, pos.down(), Direction.UP))
+                world.getEntitiesByClass(LivingEntity.class, getBoundingBox().expand(0.2D, 0.2D, 0.2D), $ -> true).forEach(this::damage);
+                BlockPos pos = this.getBlockPos();
+                BlockState down = world.getBlockState(pos.down());
+                if(world.getBlockState(pos).isAir() && down.getMaterial().isBurnable())
                     world.setBlockState(pos, Blocks.FIRE.getDefaultState());
             }
         }
@@ -78,22 +79,23 @@ public class CrazedFlame extends Entity {
         LivingEntity caster = this.getCaster();
         if (target.isAlive() && !target.isInvulnerable() && target != caster) {
             if (caster == null) {
-                target.attackEntityFrom(DamageSource.IN_FIRE, 6.0F);
-            } else if (!caster.isOnSameTeam(target)) {
-                target.attackEntityFrom(new IndirectEntityDamageSource("inFire", this, caster).setFireDamage(), 6.0F);
+                target.damage(DamageSource.IN_FIRE, 6.0F);
+            } else if (!caster.isTeammate(target)) {
+                // TODO fire damage source
+                target.damage(new ProjectileDamageSource("inFire", this, caster), 6.0F);
             }
         }
     }
 
     public void setCaster(@Nullable LivingEntity caster) {
         this.caster = caster;
-        this.casterUuid = caster == null ? null : caster.getUniqueID();
+        this.casterUuid = caster == null ? null : caster.getUuid();
     }
 
     @Nullable
     public LivingEntity getCaster() {
         if (this.caster == null && this.casterUuid != null && this.world instanceof ServerWorld) {
-            Entity entity = ((ServerWorld) this.world).getEntityByUuid(this.casterUuid);
+            Entity entity = ((ServerWorld) this.world).getEntity(this.casterUuid);
             if (entity instanceof LivingEntity) {
                 this.caster = (LivingEntity) entity;
             }
@@ -103,24 +105,25 @@ public class CrazedFlame extends Entity {
     }
 
     @Override
-    protected void registerData() {
+    protected void initDataTracker() {
     }
 
-    protected void readAdditional(CompoundNBT compound) {
-        if (compound.hasUniqueId("owner")) {
-            this.casterUuid = compound.getUniqueId("owner");
+    protected void readCustomDataFromTag(CompoundTag compound) {
+        if (compound.containsUuid("owner")) {
+            this.casterUuid = compound.getUuid("owner");
         }
         if (compound.contains("life")) this.life = compound.getInt("life");
     }
 
-    protected void writeAdditional(CompoundNBT compound) {
+    protected void writeCustomDataToTag(CompoundTag compound) {
         if (this.casterUuid != null) {
-            compound.putUniqueId("owner", this.casterUuid);
+            compound.putUuid("owner", this.casterUuid);
         }
         compound.putInt("life", life);
     }
 
-    public IPacket<?> createSpawnPacket() {
-        return NetworkHooks.getEntitySpawningPacket(this);
+    @Override
+    public Packet<?> createSpawnPacket() {
+        return new EntitySpawnS2CPacket(this);
     }
 }

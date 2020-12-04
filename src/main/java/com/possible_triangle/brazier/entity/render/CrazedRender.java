@@ -1,30 +1,31 @@
 package com.possible_triangle.brazier.entity.render;
 
-import com.mojang.blaze3d.matrix.MatrixStack;
 import com.possible_triangle.brazier.Brazier;
+import com.possible_triangle.brazier.Content;
 import com.possible_triangle.brazier.entity.Crazed;
-import net.minecraft.client.renderer.IRenderTypeBuffer;
-import net.minecraft.client.renderer.entity.EntityRendererManager;
-import net.minecraft.client.renderer.entity.EvokerRenderer;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.entity.EntityRenderDispatcher;
+import net.minecraft.client.render.entity.EvokerEntityRenderer;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.Identifier;
 
-public class CrazedRender extends EvokerRenderer<Crazed> {
+public class CrazedRender extends EvokerEntityRenderer<Crazed> {
 
-    private static final ResourceLocation TEXTURE = new ResourceLocation(Brazier.MODID, "textures/entity/crazed.png");
-
-    @Override
-    public void render(Crazed entity, float yaw, float ticks, MatrixStack matrizes, IRenderTypeBuffer buffer, int light) {
-        entityModel.func_205062_a().showModel = true;
-        super.render(entity, yaw, ticks, matrizes, buffer, light);
-    }
-
-    public CrazedRender(EntityRendererManager manager) {
-        super(manager);
-        entityModel.func_205062_a().showModel = true;
-    }
+    private static final Identifier TEXTURE = new Identifier(Content.MODID, "textures/entity/crazed.png");
 
     @Override
-    public ResourceLocation getEntityTexture(Crazed entity) {
+    public void render(Crazed entity, float f, float g, MatrixStack matrices, VertexConsumerProvider buffer, int i) {
+        model.getHat().visible = true;
+        super.render(entity, f, g, matrices, buffer, i);
+    }
+
+    public CrazedRender(EntityRenderDispatcher dispatcher) {
+        super(dispatcher);
+        model.getHat().visible = true;
+    }
+
+    @Override
+    public Identifier getTexture(Crazed entity) {
         return TEXTURE;
     }
 }

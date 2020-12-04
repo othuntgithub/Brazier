@@ -1,128 +1,140 @@
 package com.possible_triangle.brazier.block.tile.render;
 
-import com.mojang.blaze3d.matrix.MatrixStack;
-import com.mojang.blaze3d.vertex.IVertexBuilder;
-import com.possible_triangle.brazier.Brazier;
+import com.possible_triangle.brazier.Content;
 import com.possible_triangle.brazier.block.tile.BrazierTile;
-import com.possible_triangle.brazier.config.BrazierConfig;
 import com.possible_triangle.brazier.entity.render.CrazedFlameRenderer;
-import net.minecraft.block.Blocks;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.*;
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.client.renderer.tileentity.TileEntityRenderer;
-import net.minecraft.client.renderer.tileentity.TileEntityRendererDispatcher;
-import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
-import net.minecraft.inventory.container.PlayerContainer;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.vector.Matrix4f;
-import net.minecraft.util.math.vector.Vector3f;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.client.event.TextureStitchEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.common.ObfuscationReflectionHelper;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.*;
+import net.minecraft.client.render.block.entity.BlockEntityRenderDispatcher;
+import net.minecraft.client.render.block.entity.BlockEntityRenderer;
+import net.minecraft.client.texture.Sprite;
+import net.minecraft.client.texture.SpriteAtlasTexture;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.client.util.math.Vector3f;
+import net.minecraft.util.math.Matrix4f;
 import org.lwjgl.opengl.GL11;
 
-import java.util.stream.Stream;
+@Environment(EnvType.CLIENT)
+public class BrazierRenderer extends BlockEntityRenderer<BrazierTile> {
 
-@OnlyIn(Dist.CLIENT)
-@Mod.EventBusSubscriber(bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
-public class BrazierRenderer extends TileEntityRenderer<BrazierTile> {
+    public static Sprite RUNES;
+    public static String TEXTURE_KEY = "block/brazier_runes";
+    public static final RenderLayer RENDER_TYPE;
 
-    public static TextureAtlasSprite RUNES;
-    public static final RenderType RENDER_TYPE;
+    private static final int TEXTURE_HEIGHT = 9;
 
     static {
-        RenderType.State glState = RenderType.State.getBuilder().texture(new RenderState.TextureState(PlayerContainer.LOCATION_BLOCKS_TEXTURE, false, true))
-                .transparency(ObfuscationReflectionHelper.getPrivateValue(RenderState.class, null, "field_228515_g_"))
-                .diffuseLighting(new RenderState.DiffuseLightingState(true))
-                .alpha(new RenderState.AlphaState(0.004F))
-                .lightmap(new RenderState.LightmapState(true))
+        RenderLayer.MultiPhaseParameters glState = RenderLayer.MultiPhaseParameters.builder().texture(new RenderPhase.Texture(SpriteAtlasTexture.BLOCK_ATLAS_TEXTURE, false, true))
+                //.transparency(ObfuscationReflectionHelper.getPrivateValue(RenderState.class, null, "field_228515_g_"))
+                .diffuseLighting(new RenderPhase.DiffuseLighting(true))
+                .alpha(new RenderPhase.Alpha(0.004F))
+                .lightmap(new RenderPhase.Lightmap(true))
                 .build(true);
-        RENDER_TYPE = RenderType.makeType(Brazier.MODID + ":runes", DefaultVertexFormats.POSITION_COLOR_TEX_LIGHTMAP, GL11.GL_QUADS, 128, glState);
+        RENDER_TYPE = RenderLayer.of(Content.MODID + ":runes", VertexFormats.POSITION_COLOR_TEXTURE_LIGHT, GL11.GL_QUADS, 128, glState);
     }
 
+    /*
+    TODO do I need this?
     @SubscribeEvent
     public static void atlasStitch(TextureStitchEvent.Pre event) {
         if (event.getMap().getTextureLocation().equals(PlayerContainer.LOCATION_BLOCKS_TEXTURE)) {
-            event.addSprite(new ResourceLocation(Brazier.MODID, "block/brazier_runes"));
+            event.addSprite(new ResourceLocation(Brazier.MODID, TEXTURE_KEY));
         }
     }
 
     @SubscribeEvent
     public static void atlasStitch(TextureStitchEvent.Post event) {
         if (event.getMap().getTextureLocation().equals(PlayerContainer.LOCATION_BLOCKS_TEXTURE)) {
-            RUNES = event.getMap().getSprite(new ResourceLocation(Brazier.MODID, "block/brazier_runes"));
+            RUNES = event.getMap().getSprite(new ResourceLocation(Brazier.MODID, TEXTURE_KEY));
         }
     }
+    */
 
-    public BrazierRenderer(TileEntityRendererDispatcher dispatcher) {
+    public BrazierRenderer(BlockEntityRenderDispatcher dispatcher) {
         super(dispatcher);
     }
 
-    private void renderTop(MatrixStack matrizes, float alpha, IRenderTypeBuffer buffer, Vector3f vvvv) {
-        matrizes.push();
-        matrizes.translate(0, 0.05F, 0);
-        Matrix4f matrix = matrizes.getLast().getMatrix();
-        IVertexBuilder vertex = buffer.getBuffer(RENDER_TYPE);
+    private void renderTop(MatrixStack matrices, float alpha, VertexConsumerProvider buffer) {
+        matrices.push();
+        matrices.translate(0, 0.05F, 0);
+        Matrix4f matrix = matrices.peek().getModel();
+        VertexConsumer vertex = buffer.getBuffer(RENDER_TYPE);
         for (int i = 0; i < 4; i++) {
             float v = RUNES.getMaxU() - RUNES.getMinU();
-            float start = v / 9F * i;
+            float start = v / 9F * i * 2;
             float minU = RUNES.getMinU() + start;
-            float maxU= minU + v / 9F * 1.5F;
-            matrizes.rotate(Vector3f.YN.rotationDegrees(90F));
-            vertex.pos(matrix, 1.0F, 0, -0.25F).color(1F, 1F, 1F, alpha).tex(maxU, RUNES.getMinV()).lightmap(0xF000F0).endVertex();
-            vertex.pos(matrix, 1.0F, 0, +0.25F).color(1F, 1F, 1F, alpha).tex(maxU, RUNES.getMaxV()).lightmap(0xF000F0).endVertex();
-            vertex.pos(matrix, 2.5F, 0, +0.25F).color(1F, 1F, 1F, alpha).tex(minU, RUNES.getMaxV()).lightmap(0xF000F0).endVertex();
-            vertex.pos(matrix, 2.5F, 0, -0.25F).color(1F, 1F, 1F, alpha).tex(minU, RUNES.getMinV()).lightmap(0xF000F0).endVertex();
+            float maxU = minU + v / 9F * 1.5F;
+
+            matrices.multiply(Vector3f.NEGATIVE_Y.getDegreesQuaternion(90F));
+
+            vertex.vertex(matrix, 1.0F, 0, -0.25F).color(1F, 1F, 1F, alpha).texture(maxU, RUNES.getMinV()).light(0xF000F0).next();
+            vertex.vertex(matrix, 1.0F, 0, +0.25F).color(1F, 1F, 1F, alpha).texture(maxU, RUNES.getMaxV()).light(0xF000F0).next();
+            vertex.vertex(matrix, 2.5F, 0, +0.25F).color(1F, 1F, 1F, alpha).texture(minU, RUNES.getMaxV()).light(0xF000F0).next();
+            vertex.vertex(matrix, 2.5F, 0, -0.25F).color(1F, 1F, 1F, alpha).texture(minU, RUNES.getMinV()).light(0xF000F0).next();
+
         }
-        matrizes.pop();
+        matrices.pop();
     }
 
-    private void renderSide(MatrixStack matrizes, float alpha, IRenderTypeBuffer buffer, Vector3f v, int height) {
-        float segment = Math.min(9, height) - 0.25F;
-        matrizes.push();
-        matrizes.rotate(v.rotationDegrees(90F));
-        if (v.getZ() == 0) matrizes.rotate(Vector3f.YP.rotationDegrees(90F));
-        matrizes.translate(v.getX() + v.getZ() > 0 ? -segment : 0, 2.55F, 0);
-        Matrix4f matrix = matrizes.getLast().getMatrix();
-        IVertexBuilder vertex = buffer.getBuffer(RENDER_TYPE);
-        float maxU = RUNES.getMinU() + segment * ((RUNES.getMaxU() - RUNES.getMinU()) / 9F);
-        vertex.pos(matrix, 0, 0, -0.25F).color(1F, 1F, 1F, alpha).tex(maxU, RUNES.getMinV()).lightmap(0xF000F0).endVertex();
-        vertex.pos(matrix, 0, 0, +0.25F).color(1F, 1F, 1F, alpha).tex(maxU, RUNES.getMaxV()).lightmap(0xF000F0).endVertex();
-        vertex.pos(matrix, segment, 0, +0.25F).color(1F, 1F, 1F, alpha).tex(RUNES.getMinU(), RUNES.getMaxV()).lightmap(0xF000F0).endVertex();
-        vertex.pos(matrix, segment, 0, -0.25F).color(1F, 1F, 1F, alpha).tex(RUNES.getMinU(), RUNES.getMinV()).lightmap(0xF000F0).endVertex();
-        matrizes.pop();
+    private void renderSide(MatrixStack matrices, float alpha, VertexConsumerProvider buffer, int height) {
+        matrices.push();
+        int times = height / TEXTURE_HEIGHT;
+
+        for (int quarter = 0; quarter < 4; quarter++) {
+            matrices.multiply(Vector3f.NEGATIVE_Y.getDegreesQuaternion(90F));
+
+            for (int i = 0; i <= times; i++) {
+                float segment = Math.min(TEXTURE_HEIGHT, height - i * TEXTURE_HEIGHT);
+                float offset = i * TEXTURE_HEIGHT;
+
+                matrices.push();
+                matrices.multiply(Vector3f.NEGATIVE_Z.getDegreesQuaternion(90F));
+                matrices.translate(0, 2.55F, 0);
+
+                Matrix4f matrix = matrices.peek().getModel();
+                VertexConsumer vertex = buffer.getBuffer(RENDER_TYPE);
+                float maxU = RUNES.getMinU() + segment * ((RUNES.getMaxU() - RUNES.getMinU()) / ((float) TEXTURE_HEIGHT));
+
+                vertex.vertex(matrix, offset, 0, -0.25F).color(1F, 1F, 1F, alpha).texture(RUNES.getMinU(), RUNES.getMinV()).light(0xF000F0).next();
+                vertex.vertex(matrix, offset, 0, +0.25F).color(1F, 1F, 1F, alpha).texture(RUNES.getMinU(), RUNES.getMaxV()).light(0xF000F0).next();
+                vertex.vertex(matrix, offset + segment, 0, +0.25F).color(1F, 1F, 1F, alpha).texture(maxU, RUNES.getMaxV()).light(0xF000F0).next();
+                vertex.vertex(matrix, offset + segment, 0, -0.25F).color(1F, 1F, 1F, alpha).texture(maxU, RUNES.getMinV()).light(0xF000F0).next();
+
+                matrices.pop();
+            }
+
+        }
+
+        matrices.pop();
     }
 
-    private void renderFlame(MatrixStack matrizes, IRenderTypeBuffer buffer, int light) {
-        CrazedFlameRenderer.renderFlame(matrizes, Minecraft.getInstance().getRenderManager(), buffer, light);
+    private void renderFlame(MatrixStack matrices, VertexConsumerProvider buffer, int light) {
+        CrazedFlameRenderer.renderFlame(matrices, MinecraftClient.getInstance().getEntityRenderDispatcher(), buffer, light);
     }
 
     @Override
-    public void render(BrazierTile tile, float partialTicks, MatrixStack matrizes, IRenderTypeBuffer buffer, int light, int overlay) {
+    public void render(BrazierTile tile, float delta, MatrixStack matrices, VertexConsumerProvider buffer, int light, int overlay) {
         int height = tile.getHeight();
+        float alpha = 1.0F;
         if (height > 0) {
 
-            matrizes.push();
-            matrizes.translate(0.5, 0, 0.5);
+            matrices.push();
+            matrices.translate(0.5, 0, 0.5);
 
-            if(BrazierConfig.CLIENT.RENDER_RUNES.get()) {
-                Stream.of(Vector3f.XP, Vector3f.XN, Vector3f.ZN, Vector3f.ZP).forEach(v -> {
-                    renderSide(matrizes, 1F, buffer, v, height);
-                    renderTop(matrizes, 1F, buffer, v);
-                });
-            }
+            // TODO use conig
+            //if (BrazierConfig.CLIENT.RENDER_RUNES.get()) {
+            renderTop(matrices, alpha, buffer);
+            renderSide(matrices, alpha, buffer, height);
+            //}
 
-            matrizes.push();
-            matrizes.translate(0, 1.4F, 0);
-            renderFlame(matrizes, buffer, light);
-            matrizes.pop();
+            matrices.push();
+            matrices.translate(0, 1.4F, 0);
+            renderFlame(matrices, buffer, light);
+            matrices.pop();
 
-            matrizes.pop();
+            matrices.pop();
 
         }
     }

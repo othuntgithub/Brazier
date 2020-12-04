@@ -2,70 +2,53 @@ package com.possible_triangle.brazier.block;
 
 import com.possible_triangle.brazier.Content;
 import com.possible_triangle.brazier.block.tile.BrazierTile;
-import com.possible_triangle.brazier.config.BrazierConfig;
-import net.minecraft.block.Block;
-import net.minecraft.block.BlockRenderType;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.ContainerBlock;
-import net.minecraft.block.material.Material;
+import net.minecraft.block.*;
+import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.SpawnReason;
-import net.minecraft.entity.monster.MonsterEntity;
+import net.minecraft.entity.damage.DamageSource;
+import net.minecraft.entity.mob.Monster;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
-import net.minecraft.state.BooleanProperty;
-import net.minecraft.state.StateContainer;
-import net.minecraft.state.properties.BlockStateProperties;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.ActionResultType;
-import net.minecraft.util.DamageSource;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.state.StateManager;
+import net.minecraft.state.property.BooleanProperty;
+import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
+import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.BlockRayTraceResult;
-import net.minecraft.util.math.shapes.ISelectionContext;
-import net.minecraft.util.math.shapes.VoxelShape;
-import net.minecraft.world.IBlockReader;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.util.shape.VoxelShapes;
+import net.minecraft.world.BlockView;
 import net.minecraft.world.World;
-import net.minecraftforge.common.ToolType;
-import net.minecraftforge.event.entity.living.LivingSpawnEvent;
-import net.minecraftforge.eventbus.api.Event;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
+import org.jetbrains.annotations.Nullable;
 
-import javax.annotation.Nullable;
+public class BrazierBlock extends BlockWithEntity {
 
-@Mod.EventBusSubscriber(bus = Mod.EventBusSubscriber.Bus.FORGE)
-public class BrazierBlock extends ContainerBlock {
-
-    public static final BooleanProperty LIT = BlockStateProperties.LIT;
+    public static final BooleanProperty LIT = BooleanProperty.of("lit");
 
     public BrazierBlock() {
-        super(Properties.create(Material.IRON)
-                .hardnessAndResistance(3.0F)
-                .harvestTool(ToolType.PICKAXE)
-                .notSolid()
-                .setLightLevel(s -> s.get(LIT) ? 15 : 0));
+        super(Settings.of(Material.METAL)
+                .strength(3.0F)
+                .luminance(s -> s.get(LIT) ? 15 : 0));
         setDefaultState(super.getDefaultState().with(LIT, false));
     }
 
     @Override
-    protected void fillStateContainer(StateContainer.Builder<Block, BlockState> builder) {
-        super.fillStateContainer(builder);
+    protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
+        super.appendProperties(builder);
         builder.add(LIT);
     }
 
-    private static final VoxelShape SHAPE = makeCuboidShape(0, 0, 0, 16, 4, 16);
+    private static final VoxelShape SHAPE = VoxelShapes.cuboid(0, 0, 0, 16, 4, 16);
 
     public static boolean prevents(Entity entity) {
         EntityType<?> type = entity.getType();
-        return (
-                entity instanceof MonsterEntity
-                        && entity.isNonBoss()
-                        && !Content.BRAZIER_WHITELIST.contains(type)
-        ) || Content.BRAZIER_BLACKLIST.contains(type);
+        return (entity instanceof Monster && !Content.BRAZIER_WHITELIST.contains(type))
+                || Content.BRAZIER_BLACKLIST.contains(type);
     }
 
     public static boolean prevents(SpawnReason reason) {
@@ -79,44 +62,40 @@ public class BrazierBlock extends ContainerBlock {
         }
     }
 
-    @SubscribeEvent
-    public static void mobSpawn(LivingSpawnEvent.CheckSpawn event) {
-        BlockPos pos = new BlockPos(event.getX(), event.getY(), event.getZ());
+    // TODO Call this
+    public static boolean mobSpawn(ServerWorld world, Entity entity, BlockPos pos, SpawnReason reason) {
 
         // Check for spawn powder
-        if(BrazierConfig.SERVER.SPAWN_POWDER.get()) {
-            Block block = event.getWorld().getBlockState(pos).getBlock();
-            if(Content.SPAWN_POWDER.filter(block::equals).isPresent()) {
-                return;
-            }
+        // TODO use config
+        //if (BrazierConfig.SERVER.SPAWN_POWDER.get()) {
+        Block block = world.getBlockState(pos).getBlock();
+        if (Content.SPAWN_POWDER.equals(block)) {
+            return false;
         }
+        //}
 
-        if (prevents(event.getSpawnReason()) && prevents(event.getEntity()) && BrazierTile.inRange(pos))
-            event.setResult(Event.Result.DENY);
+        return prevents(reason) && prevents(entity) && BrazierTile.inRange(pos);
     }
 
     @Override
-    public VoxelShape getShape(BlockState state, IBlockReader worldIn, BlockPos pos, ISelectionContext context) {
+    public VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
         return SHAPE;
     }
 
-    @Nullable
     @Override
-    public TileEntity createNewTileEntity(IBlockReader world) {
+    public @Nullable BlockEntity createBlockEntity(BlockView world) {
         return new BrazierTile();
     }
 
     @Override
-    public ActionResultType onBlockActivated(BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand, BlockRayTraceResult hit) {
-        return Content.LIVING_TORCH.filter(torch -> {
-            ItemStack stack = player.getHeldItem(hand);
-            if (!stack.isEmpty() && Content.TORCHES.contains(stack.getItem())) {
-                if (!player.isCreative()) stack.shrink(1);
-                player.addItemStackToInventory(new ItemStack(torch, 1));
-                return true;
-            }
-            return false;
-        }).map($ -> ActionResultType.SUCCESS).orElse(ActionResultType.PASS);
+    public ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand, BlockHitResult hit) {
+        ItemStack stack = player.getStackInHand(hand);
+        if (!stack.isEmpty() && Content.TORCHES.contains(stack.getItem())) {
+            if (!player.isCreative()) stack.decrement(1);
+            player.giveItemStack(new ItemStack(Content.LIVING_TORCH, 1));
+            return ActionResult.SUCCESS;
+        }
+        return ActionResult.PASS;
     }
 
     @Override
@@ -126,8 +105,8 @@ public class BrazierBlock extends ContainerBlock {
 
     @Override
     public void onEntityCollision(BlockState state, World world, BlockPos pos, Entity entity) {
-        if (!entity.isImmuneToFire() && state.get(LIT) && entity instanceof LivingEntity && !EnchantmentHelper.hasFrostWalker((LivingEntity) entity)) {
-            entity.attackEntityFrom(DamageSource.IN_FIRE, 2F);
+        if (!entity.isFireImmune() && state.get(LIT) && entity instanceof LivingEntity && !EnchantmentHelper.hasFrostWalker((LivingEntity) entity)) {
+            entity.damage(DamageSource.IN_FIRE, 2F);
         }
         super.onEntityCollision(state, world, pos, entity);
     }

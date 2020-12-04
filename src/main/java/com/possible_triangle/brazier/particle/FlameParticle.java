@@ -1,40 +1,40 @@
 package com.possible_triangle.brazier.particle;
 
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.minecraft.client.particle.*;
 import net.minecraft.client.world.ClientWorld;
-import net.minecraft.particles.BasicParticleType;
+import net.minecraft.particle.DefaultParticleType;
 import net.minecraft.util.math.MathHelper;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
 
-@OnlyIn(Dist.CLIENT)
-public class FlameParticle extends DeceleratingParticle {
+@Environment(EnvType.CLIENT)
+public class FlameParticle extends AbstractSlowingParticle {
 
     public FlameParticle(ClientWorld world, double x, double y, double z, double dx, double dy, double dz) {
         super(world, x, y, z, dx, dy, dz);
     }
 
-    public IParticleRenderType getRenderType() {
-        return IParticleRenderType.PARTICLE_SHEET_OPAQUE;
+    public ParticleTextureSheet getType() {
+        return ParticleTextureSheet.PARTICLE_SHEET_OPAQUE;
     }
 
     public void move(double x, double y, double z) {
         this.setBoundingBox(this.getBoundingBox().offset(x, y, z));
-        this.resetPositionToBB();
+        this.repositionFromBoundingBox();
     }
 
-    public float getScale(float scaleFactor) {
+    public float getSize(float scaleFactor) {
         float f = ((float) this.age + scaleFactor) / (float) this.maxAge;
-        return this.particleScale * (1.0F - f * f * 0.5F);
+        return this.scale * (1.0F - f * f * 0.5F);
     }
 
-    public int getBrightnessForRender(float partialTick) {
-        float f = ((float) this.age + partialTick) / (float) this.maxAge;
+    public int getColorMultiplier(float tint) {
+        float f = ((float)this.age + tint) / (float)this.maxAge;
         f = MathHelper.clamp(f, 0.0F, 1.0F);
-        int i = super.getBrightnessForRender(partialTick);
+        int i = super.getColorMultiplier(tint);
         int j = i & 255;
         int k = i >> 16 & 255;
-        j = j + (int) (f * 15.0F * 16.0F);
+        j += (int)(f * 15.0F * 16.0F);
         if (j > 240) {
             j = 240;
         }
@@ -42,18 +42,19 @@ public class FlameParticle extends DeceleratingParticle {
         return j | k << 16;
     }
 
-    @OnlyIn(Dist.CLIENT)
-    public static class Factory implements IParticleFactory<BasicParticleType> {
-        private final IAnimatedSprite spriteSet;
 
-        public Factory(IAnimatedSprite spriteSet) {
-            this.spriteSet = spriteSet;
+    @Environment(EnvType.CLIENT)
+    public static class Factory implements ParticleFactory<DefaultParticleType> {
+        private final SpriteProvider spriteProvider;
+
+        public Factory(SpriteProvider spriteProvider) {
+            this.spriteProvider = spriteProvider;
         }
 
-        public Particle makeParticle(BasicParticleType type, ClientWorld world, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed) {
-            FlameParticle particle = new FlameParticle(world, x, y, z, xSpeed, ySpeed, zSpeed);
-            particle.selectSpriteRandomly(this.spriteSet);
-            return particle;
+        public Particle createParticle(DefaultParticleType defaultParticleType, ClientWorld clientWorld, double d, double e, double f, double g, double h, double i) {
+            FlameParticle flameParticle = new FlameParticle(clientWorld, d, e, f, g, h, i);
+            flameParticle.setSprite(this.spriteProvider);
+            return flameParticle;
         }
     }
 

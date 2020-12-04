@@ -1,8 +1,8 @@
 package com.possible_triangle.brazier;
 
 import com.possible_triangle.brazier.block.BrazierBlock;
-import com.possible_triangle.brazier.block.LazyTorchBlock;
-import com.possible_triangle.brazier.block.LazyWallTorchBlock;
+import com.possible_triangle.brazier.block.LivingTorchBlock;
+import com.possible_triangle.brazier.block.LivingWallTorchBlock;
 import com.possible_triangle.brazier.block.SpawnPowder;
 import com.possible_triangle.brazier.block.tile.BrazierTile;
 import com.possible_triangle.brazier.block.tile.render.BrazierRenderer;
@@ -10,149 +10,130 @@ import com.possible_triangle.brazier.entity.Crazed;
 import com.possible_triangle.brazier.entity.CrazedFlame;
 import com.possible_triangle.brazier.entity.render.CrazedFlameRenderer;
 import com.possible_triangle.brazier.entity.render.CrazedRender;
-import com.possible_triangle.brazier.item.LazySpawnEgg;
-import com.possible_triangle.brazier.item.LivingTorch;
-import com.possible_triangle.brazier.particle.FlameParticle;
-import net.minecraft.block.Block;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.RenderTypeLookup;
-import net.minecraft.entity.EntityClassification;
-import net.minecraft.entity.EntitySpawnPlacementRegistry;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
+import net.fabricmc.fabric.api.client.rendereregistry.v1.BlockEntityRendererRegistry;
+import net.fabricmc.fabric.api.client.rendereregistry.v1.EntityRendererRegistry;
+import net.fabricmc.fabric.api.tag.TagRegistry;
+import net.fabricmc.fabric.impl.blockrenderlayer.BlockRenderLayerMapImpl;
+import net.minecraft.block.*;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.entity.EntityRenderDispatcher;
 import net.minecraft.entity.EntityType;
-import net.minecraft.item.BlockItem;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemGroup;
-import net.minecraft.item.Rarity;
-import net.minecraft.particles.BasicParticleType;
-import net.minecraft.particles.ParticleType;
-import net.minecraft.tags.BlockTags;
-import net.minecraft.tags.EntityTypeTags;
-import net.minecraft.tags.ITag;
-import net.minecraft.tags.ItemTags;
-import net.minecraft.tileentity.TileEntityType;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.world.gen.Heightmap;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.client.event.ColorHandlerEvent;
-import net.minecraftforge.client.event.ParticleFactoryRegisterEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.RegistryObject;
-import net.minecraftforge.fml.client.registry.ClientRegistry;
-import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
-import net.minecraftforge.registries.DeferredRegister;
-import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraft.entity.SpawnGroup;
+import net.minecraft.item.*;
+import net.minecraft.particle.ParticleEffect;
+import net.minecraft.particle.ParticleTypes;
+import net.minecraft.tag.Tag;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.Rarity;
+import net.minecraft.util.registry.Registry;
 
 import java.awt.*;
 import java.util.function.Function;
-import java.util.function.Supplier;
 import java.util.stream.Stream;
 
-import static com.possible_triangle.brazier.Brazier.MODID;
+import static net.minecraft.util.registry.Registry.*;
 
-@Mod.EventBusSubscriber(bus = Mod.EventBusSubscriber.Bus.MOD)
 public class Content {
 
-    public static final ITag<Block> BRAZIER_BASE_BLOCKS = BlockTags.makeWrapperTag(new ResourceLocation(MODID, "brazier_base_blocks").toString());
-    public static final ITag<EntityType<?>> BRAZIER_WHITELIST = EntityTypeTags.getTagById(new ResourceLocation(MODID, "brazier_whitelist").toString());
-    public static final ITag<EntityType<?>> BRAZIER_BLACKLIST = EntityTypeTags.getTagById(new ResourceLocation(MODID, "brazier_blacklist").toString());
-    public static final ITag<Item> TORCHES = ItemTags.makeWrapperTag(new ResourceLocation(MODID, "torches").toString());
+    public static final String MODID = "brazier";
 
-    public static final ITag<Item> ASH_TAG = ItemTags.makeWrapperTag(new ResourceLocation(MODID, "ash").toString());
-    public static final ITag<Item> WARPED_WART_TAG = ItemTags.makeWrapperTag(new ResourceLocation(MODID, "warped_wart").toString());
+    public static Identifier modLoc(String path) {
+        return modLoc(path);
+    }
 
-    public static final DeferredRegister<Item> ITEMS = DeferredRegister.create(ForgeRegistries.ITEMS, MODID);
-    public static final DeferredRegister<Block> BLOCKS = DeferredRegister.create(ForgeRegistries.BLOCKS, MODID);
-    public static final DeferredRegister<TileEntityType<?>> TILES = DeferredRegister.create(ForgeRegistries.TILE_ENTITIES, MODID);
-    public static final DeferredRegister<EntityType<?>> ENTITIES = DeferredRegister.create(ForgeRegistries.ENTITIES, MODID);
-    public static final DeferredRegister<ParticleType<?>> PARTICLES = DeferredRegister.create(ForgeRegistries.PARTICLE_TYPES, MODID);
+    public static final Tag<Block> BRAZIER_BASE_BLOCKS = TagRegistry.block(modLoc("brazier_base_blocks"));
+    public static final Tag<EntityType<?>> BRAZIER_WHITELIST = TagRegistry.entityType(modLoc("brazier_whitelist"));
+    public static final Tag<EntityType<?>> BRAZIER_BLACKLIST = TagRegistry.entityType(modLoc("brazier_blacklist"));
 
-    public static final RegistryObject<BasicParticleType> FLAME_PARTICLE = PARTICLES.register("flame", () -> new BasicParticleType(false));
+    public static final Tag<Item> TORCHES = TagRegistry.item(modLoc("torches"));
+    public static final Tag<Item> INDICATORS = TagRegistry.item(modLoc("range_indicator"));
+    public static final Tag<Item> ASH_TAG = TagRegistry.item(modLoc("ash"));
+    public static final Tag<Item> WARPED_WART_TAG = TagRegistry.item(modLoc("warped_wart"));
 
-    public static final RegistryObject<BrazierBlock> BRAZIER = registerBlock("brazier", BrazierBlock::new, p -> p.group(ItemGroup.MISC));
-    public static final RegistryObject<TileEntityType<BrazierTile>> BRAZIER_TILE = TILES.register("brazier", () ->
-            TileEntityType.Builder.create(BrazierTile::new, BRAZIER.get()).build(null)
+    // TODO use own particle
+    //public static final ParticleType FLAME_PARTICLE = Registry.register(Registry.PARTICLE_TYPE, "flame", () -> new ParticleType<>(false));
+    public static final ParticleEffect FLAME_PARTICLE = ParticleTypes.FLAME;
+
+    public static final BrazierBlock BRAZIER = registerBlock("brazier", new BrazierBlock(), p -> p.group(ItemGroup.MISC));
+    public static final BlockEntityType<BrazierTile> BRAZIER_TILE = Registry.register(BLOCK_ENTITY_TYPE, modLoc("brazier"),
+            BlockEntityType.Builder.create(BrazierTile::new, BRAZIER).build(null)
     );
 
-    public static final RegistryObject<Block> LIVING_TORCH_BLOCK = BLOCKS.register("living_torch", () -> new LazyTorchBlock(FLAME_PARTICLE));
-    public static final RegistryObject<Block> LIVING_TORCH_BLOCK_WALL = BLOCKS.register("living_wall_torch", () -> new LazyWallTorchBlock(FLAME_PARTICLE));
+    public static final Block LIVING_TORCH_BLOCK = Registry.register(BLOCK, "living_torch", new LivingTorchBlock());
+    public static final Block LIVING_TORCH_BLOCK_WALL = Registry.register(BLOCK, "living_wall_torch", new LivingWallTorchBlock());
+    public static final Block LIVING_LANTERN = registerBlock("living_lantern", new LanternBlock(AbstractBlock.Settings.copy(Blocks.LANTERN)), p -> p.group(ItemGroup.DECORATIONS));
 
-    public static final RegistryObject<Item> LIVING_FLAME = ITEMS.register("living_flame", () -> new Item(new Item.Properties().group(ItemGroup.MATERIALS).rarity(Rarity.UNCOMMON)));
-    public static final RegistryObject<Item> LIVING_TORCH = ITEMS.register("living_torch", LivingTorch::new);
+    public static final Item LIVING_FLAME = Registry.register(ITEM, modLoc("living_flame"), new Item(new Item.Settings().group(ItemGroup.MATERIALS).rarity(Rarity.UNCOMMON)));
+    public static final Item LIVING_TORCH = Registry.register(ITEM, modLoc("living_torch"), new WallStandingBlockItem(LIVING_TORCH_BLOCK, LIVING_TORCH_BLOCK_WALL, (new Item.Settings()).group(ItemGroup.DECORATIONS)));
 
-    public static final RegistryObject<Item> ASH = ITEMS.register("ash", () -> new Item(new Item.Properties().group(ItemGroup.MATERIALS)));
-    public static final RegistryObject<Item> WARPED_NETHERWART = ITEMS.register("warped_nether_wart", () -> new Item(new Item.Properties().group(ItemGroup.MATERIALS)));
-    public static final RegistryObject<Block> SPAWN_POWDER = registerBlock("spawn_powder", SpawnPowder::new, p -> p.group(ItemGroup.MATERIALS));
+    public static final Item ASH = Registry.register(ITEM, "ash", new Item(new Item.Settings().group(ItemGroup.MATERIALS)));
+    public static final Item WARPED_NETHERWART = Registry.register(ITEM, "warped_nether_wart", new Item(new Item.Settings().group(ItemGroup.MATERIALS)));
+    public static final Block SPAWN_POWDER = registerBlock("spawn_powder", new SpawnPowder(), p -> p.group(ItemGroup.MATERIALS));
 
-    public static final RegistryObject<EntityType<Crazed>> CRAZED = ENTITIES.register("crazed", () -> EntityType.Builder.<Crazed>create(Crazed::new, EntityClassification.MONSTER)
-            .setCustomClientFactory((s, w) -> new Crazed(w))
-            .immuneToFire().build("crazed"));
+    public static final EntityType<Crazed> CRAZED = Registry.register(ENTITY_TYPE, "crazed",
+            EntityType.Builder.<Crazed>create(Crazed::new, SpawnGroup.MONSTER)
+                    .makeFireImmune().build("crazed")
+    );
 
-    public static final RegistryObject<LazySpawnEgg> CRAZED_SPAWN_EGG = ITEMS.register("crazed_spawn_egg", () -> new LazySpawnEgg(CRAZED::get,
+    public static final SpawnEggItem CRAZED_SPAWN_EGG = Registry.register(ITEM, "crazed_spawn_egg", new SpawnEggItem(CRAZED,
             new Color(9804699).getRGB(),
-            new Color(0x89CB07).getRGB())
+            new Color(0x89CB07).getRGB(),
+            new Item.Settings().group(ItemGroup.MISC)
+    ));
+
+    public static final EntityType<CrazedFlame> CRAZED_FLAME = Registry.register(ENTITY_TYPE, "crazed_flame", EntityType.Builder.<CrazedFlame>create(CrazedFlame::new, SpawnGroup.MISC)
+            .setDimensions(0.6F, 0.6F)
+            .makeFireImmune()
+            .build("crazed_flame")
     );
 
-    public static final RegistryObject<EntityType<CrazedFlame>> CRAZED_FLAME = ENTITIES.register("crazed_flame", () -> EntityType.Builder.<CrazedFlame>create(CrazedFlame::new, EntityClassification.MISC)
-            .setCustomClientFactory((s, w) -> new CrazedFlame(w))
-            .size(0.6F, 0.6F)
-            .setShouldReceiveVelocityUpdates(false)
-            .immuneToFire().build("crazed_flame"));
-
-    public static <B extends Block> RegistryObject<B> registerBlock(String name, Supplier<B> supplier, Function<Item.Properties, Item.Properties> props) {
-        RegistryObject<B> block = BLOCKS.register(name, supplier);
-        ITEMS.register(name, () -> new BlockItem(block.get(), props.apply(new Item.Properties())));
+    public static <B extends Block> B registerBlock(String name, B supplier, Function<Item.Settings, Item.Settings> props) {
+        B block = Registry.register(BLOCK, modLoc(name), supplier);
+        Registry.register(ITEM, name, new BlockItem(block, props.apply(new Item.Settings())));
         return block;
     }
 
-    public static void init() {
-        ENTITIES.register(FMLJavaModLoadingContext.get().getModEventBus());
-        ITEMS.register(FMLJavaModLoadingContext.get().getModEventBus());
-        BLOCKS.register(FMLJavaModLoadingContext.get().getModEventBus());
-        TILES.register(FMLJavaModLoadingContext.get().getModEventBus());
-        PARTICLES.register(FMLJavaModLoadingContext.get().getModEventBus());
-    }
-
     public static void setup() {
-        Content.CRAZED.ifPresent(type -> {
-            Crazed.init(type);
-            EntitySpawnPlacementRegistry.register(type, EntitySpawnPlacementRegistry.PlacementType.NO_RESTRICTIONS, Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, Crazed::canSpawnHere);
-        });
+        Crazed.init(Content.CRAZED);
     }
 
-    @SubscribeEvent
-    public static void registerParticles(ParticleFactoryRegisterEvent event) {
-        FLAME_PARTICLE.ifPresent(type -> Minecraft.getInstance().particles.registerFactory(type, FlameParticle.Factory::new));
-    }
+    // TODO register particles
+    //public static void registerParticles(ParticleFactoryRegistry event) {
+    //    MinecraftClient.getInstance().particleManager.registerFactory(FLAME_PARTICLE, FlameParticle.Factory::new);
+    //}
 
 
-    @OnlyIn(Dist.CLIENT)
-    @SubscribeEvent
-    public static void itemColors(ColorHandlerEvent.Item event) {
+    // TODO Item colors
+    //@Environment(EnvType.CLIENT)
+    //public static void itemColors(ColorHandlerEvent.Item event) {
+    //
+    //    event.getItemColors().register((s, i) -> {
+    //        if (s.getItem() instanceof LazySpawnEgg) {
+    //            LazySpawnEgg egg = (LazySpawnEgg) s.getItem();
+    //            return egg.getColor(i);
+    //        } else return -1;
+    //    }, CRAZED_SPAWN_EGG);
+    //
+    //}
 
-        event.getItemColors().register((s, i) -> {
-            if (s.getItem() instanceof LazySpawnEgg) {
-                LazySpawnEgg egg = (LazySpawnEgg) s.getItem();
-                return egg.getColor(i);
-            } else return -1;
-        }, CRAZED_SPAWN_EGG.get());
+    @Environment(EnvType.CLIENT)
+    public static void clientSetup() {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        EntityRenderDispatcher entityRenderer = mc.getEntityRenderDispatcher();
 
-    }
-
-    @OnlyIn(Dist.CLIENT)
-    public static void clientSetup(Minecraft mc) {
-        CRAZED.ifPresent(type -> mc.getRenderManager().register(type, new CrazedRender(mc.getRenderManager())));
-        CRAZED_FLAME.ifPresent(type -> mc.getRenderManager().register(type, new CrazedFlameRenderer(mc.getRenderManager())));
+        EntityRendererRegistry.INSTANCE.register(CRAZED, (d, $) -> new CrazedRender(d));
+        EntityRendererRegistry.INSTANCE.register(CRAZED_FLAME, (d, $) -> new CrazedFlameRenderer(d));
 
         Stream.of(BRAZIER, LIVING_TORCH_BLOCK, LIVING_TORCH_BLOCK_WALL)
-                .filter(RegistryObject::isPresent)
-                .map(RegistryObject::get)
-                .forEach(b -> RenderTypeLookup.setRenderLayer(b, RenderType.getCutout()));
+                .forEach(b -> BlockRenderLayerMapImpl.INSTANCE.putBlock(b, RenderLayer.getCutout()));
 
-        BRAZIER_TILE.ifPresent(tile -> ClientRegistry.bindTileEntityRenderer(tile, BrazierRenderer::new));
+        BlockEntityRendererRegistry.INSTANCE.register(BRAZIER_TILE, BrazierRenderer::new);
 
-        SPAWN_POWDER.ifPresent(b -> RenderTypeLookup.setRenderLayer(b, RenderType.getCutout()));
+        BlockRenderLayerMapImpl.INSTANCE.putBlock(SPAWN_POWDER, RenderLayer.getCutout());
+        BlockRenderLayerMapImpl.INSTANCE.putBlock(LIVING_LANTERN, RenderLayer.getCutout());
     }
 }
